@@ -12,8 +12,8 @@ spring:
 
   ai:
     openai:
-      base-url: ${SILICONFLOW_BASE_URL:https://api.siliconflow.cn}
-      api-key: ${SILICONFLOW_API_KEY:your-api-key}
+      base-url: https://api.siliconflow.cn
+      api-key: sk-qnhhjmevxqljjperpdgycrxppaiwiyxbvqxgdvxsrrlmungq
       chat:
         options:
           model: deepseek-ai/DeepSeek-V3.2
@@ -24,12 +24,20 @@ spring:
           dimensions: 1536
 
     vectorstore:
-      pgvector:
+      milvus:
+        client:
+          host: "localhost"
+          port: 19530
+          username: "root"
+          password: "milvus"
+        databaseName: "default"
+        collectionName: "vector_store"
+        embeddingDimension: 1536
+        indexType: IVF_FLAT
+        metricType: COSINE
+        auto-create: true
         initialize-schema: true
-        dimensions: ${EMBEDDING_DIMENSION:1536}
-        index-type: hnsw
-        distance-type: cosine_distance
-        schema-validation: false
+
 
     mcp:
       client:
@@ -61,5 +69,12 @@ app:
     memory-max-messages: 20
     keyword-top-k: 8
     rrf-k: 60
-    es-analyzer: ${ES_ANALYZER:ik_smart}
-    es-url: ${ELASTICSEARCH_URL:http://localhost:9200}
+    es-analyzer: standard
+    es-url: http://localhost:9200
+
+logging:
+  level:
+    org.springframework.ai: DEBUG
+    org.springframework.web.client.RestClient: DEBUG
+    org.springframework.ai.openai.client: DEBUG
+    com.zilliz.client: INFO

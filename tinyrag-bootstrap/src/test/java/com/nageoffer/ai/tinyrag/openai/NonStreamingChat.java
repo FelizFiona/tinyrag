@@ -13,12 +13,12 @@ public class NonStreamingChat {
     // SiliconFlow API 地址
     private static final String API_URL = "https://api.siliconflow.cn/v1/chat/completions";
     // 替换成你自己的 API Key
-    private static final String API_KEY = "YOUR_API_KEY";
+    private static final String API_KEY = "sk-qnhhjmevxqljjperpdgycrxppaiwiyxbvqxgdvxsrrlmungq";
 
     public static void main(String[] args) throws IOException {
         // 1. 构建请求体 JSON
         JsonObject requestBody = new JsonObject();
-        requestBody.addProperty("model", "Qwen/Qwen3-32B");
+        requestBody.addProperty("model", "deepseek-ai/DeepSeek-V3.2");
         requestBody.addProperty("temperature", 0);
         requestBody.addProperty("max_tokens", 1024);
         requestBody.addProperty("stream", false);

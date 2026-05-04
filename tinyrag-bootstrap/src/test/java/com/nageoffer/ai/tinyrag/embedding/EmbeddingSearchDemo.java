@@ -10,7 +10,7 @@ public class EmbeddingSearchDemo {
 
     public static void main(String[] args) throws Exception {
         // 1. 初始化 EmbeddingClient（替换成你自己的 API Key）
-        String apiKey = "sk-xxxxxxxxxxxxxxxxxxxxxxxx";
+        String apiKey = "sk-qnhhjmevxqljjperpdgycrxppaiwiyxbvqxgdvxsrrlmungq";
         EmbeddingClient client = new EmbeddingClient(apiKey);
 
         // 2. 准备知识库的 chunks（模拟前两篇分块 + 元数据的结果）

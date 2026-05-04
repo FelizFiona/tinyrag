@@ -49,7 +49,6 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-vector-store-milvus</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -86,5 +85,14 @@
             <artifactId>gson</artifactId>
         </dependency>
 
+        <!-- Netty 原生依赖，修复 MacOS DNS 解析问题 -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-resolver-dns-native-macos</artifactId>
+            <version>4.1.100.Final</version>
+            <classifier>osx-aarch_64</classifier> <!-- 根据你的 Mac 芯片选择 -->
+        </dependency>
+
     </dependencies>
+
 </project>

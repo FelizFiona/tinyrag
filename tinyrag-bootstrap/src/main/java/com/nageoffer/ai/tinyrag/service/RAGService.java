@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
 
@@ -138,6 +138,10 @@ public class RAGService {
                     .user(question);
 
             requestSpec.advisors(spec -> spec.param(ChatMemory.CONVERSATION_ID, sessionId));
+            //记录原始问题和最终答案，方便后续分析和优化
+            requestSpec.advisors(new SimpleLoggerAdvisor());
+
+            // 根据知识库名字过滤检索结果，确保只从指定知识库中获取相关文档；如果 kb 为空，则不添加过滤条件，默认使用所有知识库
             if (StringUtils.hasText(kb)) {
                 requestSpec.advisors(spec -> spec.param(
                         VectorStoreDocumentRetriever.FILTER_EXPRESSION,
@@ -216,7 +220,7 @@ public class RAGService {
                     .system(system -> system.text(titleSystemPrompt))
                     .user(user -> user.text(titleUserPrompt).param("question", question))
                     .options(ChatOptions.builder().temperature(0.0).maxTokens(32).build())
-                    .call()
+                    .call()// 同步调用，等待结果返回；stream() 则是异步流式调用，无法直接获取结果
                     .chatClientResponse();
 
             String title = ChatResponseUtils.extractText(response);

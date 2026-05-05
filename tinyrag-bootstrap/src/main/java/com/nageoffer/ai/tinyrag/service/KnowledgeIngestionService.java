@@ -59,6 +59,7 @@ public class KnowledgeIngestionService {
         esRepository.indexDocuments(chunks);
         log.info("[Ingest] 入库完成: file={}, kb={}, chunks={}", fileName, kbName, chunks.size());
         return new UploadResponse(fileName, kbName, chunks.size());
+        // ToDo 文件持久化到数据库或对象存储，以便后续管理和查询
     }
 
     private List<Document> splitToDocuments(String content, String fileName, String kb) {

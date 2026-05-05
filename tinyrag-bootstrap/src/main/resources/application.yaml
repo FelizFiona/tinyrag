@@ -77,4 +77,5 @@ logging:
     org.springframework.ai: DEBUG
     org.springframework.web.client.RestClient: DEBUG
     org.springframework.ai.openai.client: DEBUG
+    org.springframework.ai.chat.client.advisor: DEBUG
     com.zilliz.client: INFO

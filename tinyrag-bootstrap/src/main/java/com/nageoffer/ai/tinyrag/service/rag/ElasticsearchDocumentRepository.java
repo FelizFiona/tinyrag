@@ -148,7 +148,8 @@ public class ElasticsearchDocumentRepository {
                 query = matchQuery;
             }
 
-            Map<String, Object> body = Map.of("query", query, "size", topK);
+            // explain 显示详细的评分计算过程
+            Map<String, Object> body = Map.of("query", query, "size", topK, "explain", true);
 
             String response = restClient.post()
                     .uri("/{index}/_search", INDEX_NAME)
@@ -178,6 +179,14 @@ public class ElasticsearchDocumentRepository {
                 metadata.put("kb", source.getOrDefault("kb", ""));
                 metadata.put("file_type", source.getOrDefault("file_type", ""));
                 metadata.put("chunk_index", source.getOrDefault("chunk_index", 0));
+
+                // 提取 explanation 并序列化为 JSON 字符串放入 metadata，便于调试查看
+                Object explanation = hit.get("explanation");
+                if (explanation != null) {
+                    String explanationJson = gson.toJson(explanation);
+                    metadata.put("explanation", explanationJson);
+                    log.debug("[ES] BM25详细的评分计算过程 chunk_index {}-{} ", metadata.get("chunk_index"), explanationJson);
+                }
 
                 String docId = (String) source.getOrDefault("doc_id", hit.get("_id"));
                 double score = hit.get("_score") instanceof Number n ? n.doubleValue() : 0.0;

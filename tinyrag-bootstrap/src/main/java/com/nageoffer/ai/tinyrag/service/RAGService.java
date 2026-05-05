@@ -15,23 +15,23 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Slf4j
@@ -45,6 +45,7 @@ public class RAGService {
     private final Resource titleUserPrompt;
     private final TaskExecutor taskExecutor;
     private final SuggestionService suggestionService;
+    private final RestClient restClient;
 
     public RAGService(ChatClient chatClient,
                       ChatModel chatModel,
@@ -60,6 +61,7 @@ public class RAGService {
         this.titleUserPrompt = titleUserPrompt;
         this.taskExecutor = taskExecutor;
         this.suggestionService = suggestionService;
+        this.restClient = RestClient.builder().build();
     }
 
     public SseEmitter streamChat(RAGRequest request) {
@@ -87,11 +89,22 @@ public class RAGService {
                 CompletableFuture<List<String>> suggestionsFuture = CompletableFuture
                         .supplyAsync(() -> suggestionService.generate(request.getQuestion(), request.getKb()), taskExecutor);
 
+                StringBuilder fullAnswer = new StringBuilder();
+
                 List<Document> sources = streamAnswer(request.getQuestion(), request.getKb(), sessionId,
-                        token -> sendEvent(emitter, "token", token));
+                        token -> {
+                            sendEvent(emitter, "token", token);
+                            fullAnswer.append(token);
+                        });
 
                 pushSources(emitter, sources);
                 pushSuggestions(emitter, suggestionsFuture);
+
+                // 异步向 RAGAS 评估端点发送评估数据
+                if (!fullAnswer.isEmpty()) {
+                    sendEvaluationAsync(request.getQuestion(), fullAnswer.toString(), sources);
+                }
+
                 sendEvent(emitter, "done", "[DONE]");
                 emitter.complete();
             } catch (RuntimeException ex) {
@@ -139,7 +152,7 @@ public class RAGService {
 
             requestSpec.advisors(spec -> spec.param(ChatMemory.CONVERSATION_ID, sessionId));
             //记录原始问题和最终答案，方便后续分析和优化
-            requestSpec.advisors(new SimpleLoggerAdvisor());
+//            requestSpec.advisors(new SimpleLoggerAdvisor());
 
             // 根据知识库名字过滤检索结果，确保只从指定知识库中获取相关文档；如果 kb 为空，则不添加过滤条件，默认使用所有知识库
             if (StringUtils.hasText(kb)) {
@@ -212,6 +225,39 @@ public class RAGService {
 
     private String escapeForFilter(String kb) {
         return kb.replace("'", "\\'");
+    }
+
+    /**
+     * 异步向 RAGAS 评估端点发送评估数据（fire-and-forget，不等待响应）
+     *
+     * @param question 用户问题
+     * @param answer   模型生成的回答
+     * @param contexts 检索到的上下文文档
+     */
+    private void sendEvaluationAsync(String question, String answer, List<Document> contexts) {
+        taskExecutor.execute(() -> {
+            try {
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("question", question);
+                body.put("answer", answer);
+                body.put("contexts", contexts.stream().map(Document::getText).toList());
+
+                log.info("[Evaluation] RAGAS 评估请求已发送, question={}", question);
+                restClient.post()
+                        .uri("http://localhost:8383/evaluate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(body)
+                        .exchange((request, response) -> {
+                            // fire-and-forget：只消费响应流，忽略任何结果（包括超时、错误状态码）
+                            response.getBody().close();
+                            return null;
+                        });
+
+
+            } catch (Exception ex) {
+//                log.warn("[Evaluation] 发送 RAGAS 评估请求失败", ex);
+            }
+        });
     }
 
     private String generateTitle(String question) {
